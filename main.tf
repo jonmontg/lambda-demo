@@ -34,8 +34,8 @@ resource "aws_lambda_function" "demo_lambda" {
   timeout       = 60
   memory_size   = 512
 
-  filename         = "lambda_package.zip"
-  source_code_hash = filebase64sha256("lambda_package.zip")
+  filename         = "lambda_function.zip"
+  source_code_hash = filebase64sha256("lambda_function.zip")
 
   environment {
     variables = {
