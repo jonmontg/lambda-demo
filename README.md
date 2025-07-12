@@ -34,7 +34,6 @@ Add the following secrets to your GitHub repository (Settings > Secrets and vari
 
 - `AWS_ACCESS_KEY_ID`: Your AWS access key ID
 - `AWS_SECRET_ACCESS_KEY`: Your AWS secret access key
-- `AWS_REGION`: Your preferred AWS region (e.g., `us-east-1`)
 
 ### 3. Customization (Optional)
 

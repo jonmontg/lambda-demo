@@ -1,6 +1,4 @@
-provider "aws" {
-  region = var.aws_region
-}
+provider "aws" { }
 
 resource "aws_iam_role" "lambda_exec" {
   name = var.lambda_role_name
@@ -63,10 +61,4 @@ resource "aws_lambda_function" "demo_lambda" {
 
   filename         = "lambda_function.zip"
   source_code_hash = filebase64sha256("lambda_function.zip")
-
-  environment {
-    variables = {
-      AWS_REGION = var.aws_region
-    }
-  }
 }
