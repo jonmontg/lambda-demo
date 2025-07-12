@@ -1,9 +1,9 @@
 provider "aws" {
-  region = "us-east-1"
+  region = var.aws_region
 }
 
 resource "aws_iam_role" "lambda_exec" {
-  name = "demo-lambda-exec-role"
+  name = var.lambda_role_name
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -26,8 +26,35 @@ resource "aws_iam_role_policy_attachment" "lambda_s3" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }
 
+# Custom policy for Bedrock access
+resource "aws_iam_policy" "lambda_bedrock" {
+  name        = "lambda-bedrock-policy"
+  description = "Policy for Lambda to access Bedrock"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:ListFoundationModels",
+          "bedrock:GetFoundationModel"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_bedrock" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = aws_iam_policy.lambda_bedrock.arn
+}
+
 resource "aws_lambda_function" "demo_lambda" {
-  function_name = "demo-lambda-function"
+  function_name = var.lambda_function_name
   role          = aws_iam_role.lambda_exec.arn
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.11"
@@ -39,11 +66,7 @@ resource "aws_lambda_function" "demo_lambda" {
 
   environment {
     variables = {
-      AWS_REGION = "us-east-1"
+      AWS_REGION = var.aws_region
     }
   }
-}
-
-output "lambda_function_name" {
-  value = aws_lambda_function.demo_lambda.function_name
 }
