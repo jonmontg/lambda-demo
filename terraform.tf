@@ -6,4 +6,10 @@ terraform {
     }
   }
   required_version = ">= 1.0.0"
+  backend "s3" {
+    bucket         = "terraform-state-bucket-937"
+    key            = "demo_lambda_function/${terraform.workspace}/terraform.tfstate"
+    dynamodb_table = "terraform-locks"
+    encrypt        = true
+  }
 }
