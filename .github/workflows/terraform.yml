@@ -2,56 +2,103 @@ name: 'Terraform'
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
 
 permissions:
-  contents: read
+  contents: read  # Restrict permissions to read-only access to repo contents
 
 jobs:
   terraform:
-    name: 'Terraform'
-    runs-on: ubuntu-latest
-    environment: production
+    name: 'Terraform'  # Job name displayed in the GitHub Actions UI
+    runs-on: ubuntu-latest  # Run this job on the latest Ubuntu GitHub runner
+    environment: production  # GitHub Actions environment context
 
-    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
     defaults:
       run:
-        shell: bash
+        shell: bash  # Use Bash shell for all steps, regardless of OS
 
     steps:
-    # Checkout the repository to the GitHub Actions runner
+    # Step 1: Checkout the repository so workflow can access source code
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Zip Lambda code
-      run: zip -r ../lambda_function.zip .
+    # Step 2: Set the environment name dynamically based on the branch name
+    - name: Set environment suffix
+      id: env
+      run: |
+        BRANCH_ENV=$(echo "${GITHUB_REF_NAME}" | sed 's/\//-/g')
+        echo "env=$BRANCH_ENV" >> "$GITHUB_OUTPUT"
 
-    # Configure AWS credentials
+    # Step 3: Zip contents of the lambda_function directory (not the folder itself)
+    - name: Zip Lambda code
+      run: |
+        cd lambda_function
+        zip -r ../lambda_function.zip .  # Zip the contents only, excluding top-level folder
+
+    # Step 4: Configure AWS credentials using GitHub secrets
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # IAM user's access key
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # IAM user's secret key
+        aws-region: ${{ secrets.AWS_REGION }}  # AWS region (e.g., us-east-1)
 
-    # Install the latest version of Terraform CLI
+    # Step 5: Install the Terraform CLI in the runner
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v1
 
-    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+    # Step 6: Initialize Terraform to set up the backend and download modules/providers
     - name: Terraform Init
       run: terraform init
 
-    # Checks that all Terraform configuration files adhere to a canonical format
+    # Step 7: Check Terraform formatting to ensure consistent style
     - name: Terraform Format
       run: terraform fmt -check
 
-    # Generates an execution plan for Terraform
+    # Step 8: Create and show the Terraform execution plan
     - name: Terraform Plan
-      run: terraform plan -input=false
+      run: terraform plan -input=false -var="env=${{ steps.env.outputs.env }}"  # Inject branch-based env as a variable
 
-    # On push to "main", build or change infrastructure according to Terraform configuration files
+    # Import Lambda Exec IAM role if it already exists, to avoid "already exists" error
+    - name: Import existing IAM role if needed
+      run: |
+        ROLE_NAME="demo-lambda-exec-role-${{ steps.env.outputs.env }}"  # Construct role name with env suffix
+        ROLE_ARN=$(aws iam get-role --role-name "$ROLE_NAME" --query 'Role.Arn' --output text 2>/dev/null || true)  # Check if role exists
+
+        if [ -n "$ROLE_ARN" ]; then
+          echo "Role $ROLE_NAME exists at $ROLE_ARN. Importing..."
+          terraform import aws_iam_role.lambda_exec "$ROLE_NAME" || true  # Import role into Terraform state
+        else
+          echo "Role $ROLE_NAME does not exist. Skipping import."
+        fi
+
+    # Import Bedrock IAM policy if it already exists, to avoid duplicate error
+    - name: Import existing IAM policy if needed
+      run: |
+        POLICY_NAME="lambda-bedrock-policy"  # Static name (assumes same across environments)
+        POLICY_ARN=$(aws iam list-policies --scope Local --query "Policies[?PolicyName=='$POLICY_NAME'].Arn" --output text)  # Lookup policy
+
+        if [ "$POLICY_ARN" != "None" ] && [ -n "$POLICY_ARN" ]; then
+          echo "Policy $POLICY_NAME exists at $POLICY_ARN. Importing..."
+          terraform import aws_iam_policy.lambda_bedrock "$POLICY_ARN" || true  # Import if it exists
+        else
+          echo "Policy $POLICY_NAME does not exist. Skipping import."
+        fi
+
+    # Import Lambda function if it already exists, to avoid duplicate error
+    - name: Import existing Lambda if needed
+      run: |
+        FUNCTION_NAME="demo-lambda-function-${{ steps.env.outputs.env }}"
+        EXISTS=$(aws lambda get-function --function-name "$FUNCTION_NAME" --query 'Configuration.FunctionArn' --output text 2>/dev/null || true)
+        if [ -n "$EXISTS" ]; then
+          echo "Function $FUNCTION_NAME exists. Importing..."
+          terraform import aws_lambda_function.demo_lambda "$FUNCTION_NAME" || true
+        else
+          echo "Function $FUNCTION_NAME does not exist. Skipping import."
+        fi
+
+    # Apply Terraform plan to create/update infrastructure
     - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: terraform apply -auto-approve -input=false
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'  # Only apply on main and dev branches
+      run: terraform apply -auto-approve -input=false -var="env=${{ steps.env.outputs.env }}"  # Inject env variable into apply step

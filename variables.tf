@@ -1,3 +1,9 @@
+variable "env" {
+  type        = string
+  description = "Environment name (e.g. dev, staging, prod)"
+  default     = "dev"
+}
+
 variable "aws_region" {
   description = "AWS region"
   type        = string

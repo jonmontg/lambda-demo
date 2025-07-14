@@ -3,7 +3,7 @@ provider "aws" {
 }
 
 resource "aws_iam_role" "lambda_exec" {
-  name = var.lambda_role_name
+  name = "${var.lambda_role_name}-${var.env}"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -54,7 +54,7 @@ resource "aws_iam_role_policy_attachment" "lambda_bedrock" {
 }
 
 resource "aws_lambda_function" "demo_lambda" {
-  function_name = var.lambda_function_name
+  function_name = "${var.lambda_function_name}-${var.env}"
   role          = aws_iam_role.lambda_exec.arn
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.11"
@@ -62,5 +62,5 @@ resource "aws_lambda_function" "demo_lambda" {
   memory_size   = 512
 
   filename         = "lambda_function.zip"
-  source_code_hash = filebase64sha256("../lambda_function.zip")
+  source_code_hash = filebase64sha256("lambda_function.zip")
 }
