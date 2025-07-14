@@ -62,5 +62,5 @@ resource "aws_lambda_function" "demo_lambda" {
   memory_size   = 512
 
   filename         = "lambda_function.zip"
-  source_code_hash = filebase64sha256("lambda_function.zip")
+  source_code_hash = filebase64sha256("../lambda_function.zip")
 }

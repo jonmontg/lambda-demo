@@ -25,7 +25,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Zip Lambda code
-      run: zip -r lambda_function.zip ./lambda_function
+      run: zip -r ../lambda_function.zip .
 
     # Configure AWS credentials
     - name: Configure AWS credentials
