@@ -1,5 +1,4 @@
-provider "aws" {
-}
+provider "aws" {}
 
 # IAM Role for Lambda
 resource "aws_iam_role" "lambda_exec" {
@@ -67,30 +66,43 @@ resource "aws_lambda_function" "demo_lambda" {
   source_code_hash = filebase64sha256("lambda_function.zip")
 }
 
-# API Gateway
-resource "aws_apigatewayv2_api" "lambda_api" {
-  name          = "${var.lambda_function_name}-api-${terraform.workspace}"
-  protocol_type = "HTTP"
+# REST API Gateway with IAM Authorization
+resource "aws_api_gateway_rest_api" "lambda_api" {
+  name        = "${var.lambda_function_name}-rest-api-${terraform.workspace}"
+  description = "Secure REST API Gateway using IAM authorization"
 }
 
-resource "aws_apigatewayv2_integration" "lambda_integration" {
-  api_id                 = aws_apigatewayv2_api.lambda_api.id
-  integration_type       = "AWS_PROXY"
-  integration_uri        = aws_lambda_function.demo_lambda.invoke_arn
-  integration_method     = "POST"
-  payload_format_version = "2.0"
+resource "aws_api_gateway_resource" "lambda_resource" {
+  rest_api_id = aws_api_gateway_rest_api.lambda_api.id
+  parent_id   = aws_api_gateway_rest_api.lambda_api.root_resource_id
+  path_part   = "invoke"
 }
 
-resource "aws_apigatewayv2_route" "default_route" {
-  api_id    = aws_apigatewayv2_api.lambda_api.id
-  route_key = "POST /"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+resource "aws_api_gateway_method" "post_method" {
+  rest_api_id   = aws_api_gateway_rest_api.lambda_api.id
+  resource_id   = aws_api_gateway_resource.lambda_resource.id
+  http_method   = "POST"
+  authorization = "AWS_IAM"
 }
 
-resource "aws_apigatewayv2_stage" "env_stage" {
-  api_id      = aws_apigatewayv2_api.lambda_api.id
-  name        = terraform.workspace
-  auto_deploy = true
+resource "aws_api_gateway_integration" "lambda_integration" {
+  rest_api_id             = aws_api_gateway_rest_api.lambda_api.id
+  resource_id             = aws_api_gateway_resource.lambda_resource.id
+  http_method             = aws_api_gateway_method.post_method.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.demo_lambda.invoke_arn
+}
+
+resource "aws_api_gateway_deployment" "lambda_deploy" {
+  depends_on  = [aws_api_gateway_integration.lambda_integration]
+  rest_api_id = aws_api_gateway_rest_api.lambda_api.id
+}
+
+resource "aws_api_gateway_stage" "lambda_stage" {
+  deployment_id = aws_api_gateway_deployment.lambda_deploy.id
+  rest_api_id   = aws_api_gateway_rest_api.lambda_api.id
+  stage_name    = terraform.workspace
 }
 
 resource "aws_lambda_permission" "api_gateway_invoke" {
@@ -98,9 +110,10 @@ resource "aws_lambda_permission" "api_gateway_invoke" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.demo_lambda.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.lambda_api.execution_arn}/*/*"
+  source_arn    = "${aws_api_gateway_rest_api.lambda_api.execution_arn}/*/*"
 }
 
-output "lambda_https_endpoint" {
-  value = aws_apigatewayv2_api.lambda_api.api_endpoint
+output "lambda_secure_rest_api_url" {
+  description = "Full URL for invoking the Lambda function through REST API with IAM auth"
+  value       = "${aws_api_gateway_rest_api.lambda_api.execution_arn}/${aws_api_gateway_stage.lambda_stage.stage_name}/invoke"
 }
