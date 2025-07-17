@@ -18,13 +18,13 @@ def compound_method_worker(lock, bedrock, system_instructions, template, compoun
   )
   if compound_method_updates.get("should_update", False):
     with lock:
-      updates["compound_method"][i] = compound_method_updates.get("updates", {})
+      updates["compound_methods"][i] = compound_method_updates.get("updates", {})
 
 def modify_assay(lock, bedrock, env, prompt, assay_json):
   system_instructions = env.get_template("update_assay_si.j2").render()
   template = env.get_template("update_assay.j2")
 
-  updates = { "compound_method": {} }
+  updates = { "compound_methods": {} }
 
   threads = []
   for i in range(len(assay_json["compound_methods"])):
