@@ -31,7 +31,7 @@ def rule_context_update(s3, bedrock, assay_json, prompt, rule_name):
     }
 
   # Clean the prompt
-  ruleset_schema = s3.get_object(Bucket="assays-demo", Key="ruleset_schema")
+  ruleset_schema = s3.get_object(Bucket="assays-demo", Key="ruleset_schema.json")
   ruleset_schema = json.loads(ruleset_schema['Body'].read().decode('utf-8'))
   rule = next((rule for rule in ruleset_schema["ruleset_schema"]["rules"] if rule["name"] == rule_name), None)
   if rule:
