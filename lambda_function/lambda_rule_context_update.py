@@ -16,7 +16,7 @@ def compound_method_worker(lock, bedrock, system_instructions, template, compoun
   )
   if compound_method_updates.get("should_update", False):
     with lock:
-      updates["compound_methods"]["i"] = compound_method_updates.get("updates", {})
+      updates["compound_methods"][str(i)] = compound_method_updates.get("updates", {})
 
 def rule_context_update(s3, bedrock, assay_json, prompt, rule_name):
   lock = threading.Lock()
