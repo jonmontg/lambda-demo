@@ -7,7 +7,7 @@ logger.setLevel(logging.INFO)
 
 def query_model(bedrock, system, message):
   response = bedrock.invoke_model(
-    modelId="amazon.nova-micro-v1:0",
+    modelId="amazon.nova-pro-v1:0",
     contentType="application/json",
     accept="application/json",
     body=json.dumps({
