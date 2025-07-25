@@ -1,0 +1,18 @@
+cases:
+  - id: q001
+    event:
+      user_prompt: "Enable the rule for all analytes"
+      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_35.json"
+      prompt_context: "rules:DynamicContaminationOfDoubleBlank"
+    expect:
+      mode: exact
+      file: "tests/golden/expected/q001.json"
+
+  - id: q002
+    event:
+      user_prompt: "Enable the rule for all internal standards"
+      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_35.json"
+      prompt_context: "rules:DynamicContaminationOfDoubleBlank"
+    expect:
+      mode: exact
+      file: "tests/golden/expected/q002.json"

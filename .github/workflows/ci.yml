@@ -26,10 +26,16 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install -U pip
-          pip install -r requirements.txt
-          pip install pytest==8.3.2 pytest-cov==5.0.0
+          pip install -r lambda_function/requirements.txt
+          pip install -r requirements-test.txt
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
       - name: Run unit tests
-        run: pytest -q tests/unit/
+        run: python -m pytest tests/golden/
 
   build:
     needs: test

@@ -1,0 +1,12 @@
+{
+  "statusCode": 200,
+  "body": {
+    "compound_methods": {
+      "0": {
+        "enabled_rules_lookup": {
+          "DynamicContaminationOfDoubleBlank": true
+        }
+      }
+    }
+  }
+}
