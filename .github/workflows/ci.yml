@@ -1,0 +1,171 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+
+permissions:
+  contents: read
+  id-token: write  # if you switch to OIDC
+
+env:
+  PY_VERSION: '3.11'
+  FUNCTION_NAME: demo-lambda-function
+  ARTIFACT_PREFIX: build
+  AWS_REGION: us-east-1
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: ${{ env.PY_VERSION }} }
+      - name: Install deps
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt
+      - name: Run unit tests
+        run: pytest -q
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      zip_path: ${{ steps.pkg.outputs.path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: ${{ env.PY_VERSION }} }
+      - name: Install runtime deps into vendor/
+        run: |
+          pip install -r requirements.txt --target vendor
+      - name: Package ZIP
+        id: pkg
+        run: |
+          mkdir -p build
+          ZIP="build/${{ env.FUNCTION_NAME }}-${GITHUB_SHA::7}.zip"
+          zip -r "$ZIP" src vendor
+          echo "path=$ZIP" >> "$GITHUB_OUTPUT"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-zip
+          path: ${{ steps.pkg.outputs.path }}
+          if-no-files-found: error
+
+  terraform:
+    name: Terraform Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging, prod]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-zip
+          path: build
+
+      - name: Compute version + hash
+        id: meta
+        run: |
+          FILE=$(ls build/*.zip)
+          SHORT_SHA="${GITHUB_SHA::7}"
+          VERSION="run-${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
+          # base64(SHA-256) required by Terraform
+          HASH_B64=$(openssl dgst -sha256 -binary "$FILE" | base64)
+          echo "$HASH_B64" > "${FILE}.sha256.b64"
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+          echo "hash_file=${FILE}.sha256.b64" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<account-id>:role/<github-oidc-deploy-role>
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials (static)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name: Upload ZIP and hash to S3
+        id: s3
+        env:
+          ARTIFACT_BUCKET: ${{ secrets.ARTIFACT_BUCKET }}
+        run: |
+          FILE="${{ steps.meta.outputs.file }}"
+          HASH="${{ steps.meta.outputs.hash_file }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+
+          KEY_ZIP="${{ env.ARTIFACT_PREFIX }}/${{ env.FUNCTION_NAME }}-${{ matrix.environment }}-${VERSION}.zip"
+          KEY_HASH="${KEY_ZIP}.sha256.b64"
+
+          aws s3 cp "$FILE" "s3://${ARTIFACT_BUCKET}/${KEY_ZIP}"
+          aws s3 cp "$HASH" "s3://${ARTIFACT_BUCKET}/${KEY_HASH}"
+
+          echo "key_zip=${KEY_ZIP}"   >> "$GITHUB_OUTPUT"
+          echo "key_hash=${KEY_HASH}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}"   >> "$GITHUB_OUTPUT"
+          echo "short_sha=${{ steps.meta.outputs.short_sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: infra
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+        run: |
+          terraform init \
+            -backend-config="bucket=terraform-state-bucket-937" \
+            -backend-config="key=demo_lambda_function/${{ matrix.environment }}/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="dynamodb_table=terraform-locks" \
+            -backend-config="encrypt=true"
+
+      - name: Select or create workspace
+        working-directory: infra
+        run: |
+          terraform workspace select ${{ matrix.environment }} 2>/dev/null || terraform workspace new ${{ matrix.environment }}
+
+      - name: Terraform Plan
+        working-directory: infra
+        env:
+          TF_VAR_lambda_function_name: ${{ env.FUNCTION_NAME }}
+          TF_VAR_artifact_bucket:      ${{ secrets.ARTIFACT_BUCKET }}
+          TF_VAR_artifact_key:         ${{ steps.s3.outputs.key_zip }}
+          TF_VAR_artifact_hash_key:    ${{ steps.s3.outputs.key_hash }}
+          TF_VAR_artifact_version:     ${{ steps.s3.outputs.version }}
+          TF_VAR_git_commit_sha:       ${{ github.sha }}
+          TF_VAR_git_short_sha:        ${{ steps.s3.outputs.short_sha }}
+          TF_VAR_run_number:           ${{ github.run_number }}
+        run: terraform plan -input=false
+
+      - name: Terraform Apply
+        if: |
+          (github.ref == 'refs/heads/main' && matrix.environment == 'prod') ||
+          (github.ref == 'refs/heads/dev'  && matrix.environment == 'dev')
+        working-directory: infra
+        env:
+          TF_VAR_lambda_function_name: ${{ env.FUNCTION_NAME }}
+          TF_VAR_artifact_bucket:      ${{ secrets.ARTIFACT_BUCKET }}
+          TF_VAR_artifact_key:         ${{ steps.s3.outputs.key_zip }}
+          TF_VAR_artifact_hash_key:    ${{ steps.s3.outputs.key_hash }}
+          TF_VAR_artifact_version:     ${{ steps.s3.outputs.version }}
+          TF_VAR_git_commit_sha:       ${{ github.sha }}
+          TF_VAR_git_short_sha:        ${{ steps.s3.outputs.short_sha }}
+          TF_VAR_run_number:           ${{ github.run_number }}
+        run: terraform apply -auto-approve -input=false
