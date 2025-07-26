@@ -6,6 +6,7 @@ on:
   pull_request:
 
 permissions:
+  id-token: write
   contents: read
 
 env:
@@ -87,7 +88,7 @@ jobs:
         run: |
           FILE=$(ls build/*.zip)
           SHORT_SHA="${GITHUB_SHA::7}"
-          VERSION="run-${GITHUB_VERSION_NUMBER}-${SHORT_SHA}"
+          VERSION="run-${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
           # base64(SHA-256) required by Terraform
           HASH_B64=$(openssl dgst -sha256 -binary "$FILE" | base64)
           echo "$HASH_B64" > "${FILE}.sha256.b64"
@@ -97,12 +98,11 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
         shell: bash
 
-      - name: Configure AWS credentials (static)
+      - name: Set OIDC token
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::651609171094:role/lambda-demo-github-oidc
+          aws-region: us-east-1
 
       - name: Upload ZIP and hash to S3
         id: s3
@@ -156,7 +156,7 @@ jobs:
           TF_VAR_artifact_version:     ${{ steps.s3.outputs.version }}
           TF_VAR_git_commit_sha:       ${{ github.sha }}
           TF_VAR_git_short_sha:        ${{ steps.s3.outputs.short_sha }}
-          TF_VAR_version_number:       ${{ github.version_number }}
+          TF_VAR_version_number:       ${{ github.run_number }}
         run: terraform plan -input=false
 
       - name: Terraform Apply
@@ -172,5 +172,5 @@ jobs:
           TF_VAR_artifact_version:     ${{ steps.s3.outputs.version }}
           TF_VAR_git_commit_sha:       ${{ github.sha }}
           TF_VAR_git_short_sha:        ${{ steps.s3.outputs.short_sha }}
-          TF_VAR_version_number:       ${{ github.version_number }}
+          TF_VAR_version_number:       ${{ github.run_number }}
         run: terraform apply -auto-approve -input=false
