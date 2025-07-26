@@ -65,6 +65,14 @@ data "aws_s3_object" "zip" {
   key    = var.artifact_key
 }
 
+# Prefer metadata; fall back to body if you also upload the text file.
+locals {
+  source_code_hash = try(
+    trimspace(data.aws_s3_object.zip.metadata["sha256-b64"]),
+    trimspace(data.aws_s3_object.zip_hash.body)
+  )
+}
+
 resource "aws_lambda_function" "demo_lambda" {
   function_name = "${var.lambda_function_name}-${terraform.workspace}"
   role          = aws_iam_role.lambda_exec.arn
@@ -77,7 +85,7 @@ resource "aws_lambda_function" "demo_lambda" {
   s3_key           = var.artifact_key
 
   # Use the precomputed base64(SHA-256) from CI
-  source_code_hash = trimspace(data.aws_s3_object.zip_hash.body)
+  source_code_hash = local.source_code_hash
 
   # Helpful traceability in the function's environment
   environment {
