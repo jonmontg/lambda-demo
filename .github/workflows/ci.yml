@@ -109,12 +109,13 @@ jobs:
         env:
           ARTIFACT_BUCKET: ${{ secrets.ARTIFACT_BUCKET }}
         run: |
-          FILE=     "${{ steps.meta.outputs.file }}"
-          HASH=     "${{ steps.meta.outputs.hash_file }}"
-          VERSION=  "${{ steps.meta.outputs.version }}"
+          FILE="${{ steps.meta.outputs.file }}"
+          HASH="${{ steps.meta.outputs.hash_file }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          HASH_B64=$(cat "$HASH")
 
-          KEY_ZIP=  "${{ env.ARTIFACT_PREFIX }}/${{ env.FUNCTION_NAME }}-${{ matrix.environment }}-${VERSION}.zip"
-          KEY_HASH= "${KEY_ZIP}.sha256.b64"
+          KEY_ZIP="${{ env.ARTIFACT_PREFIX }}/${{ env.FUNCTION_NAME }}-${{ matrix.environment }}-${VERSION}.zip"
+          KEY_HASH="${KEY_ZIP}.sha256.b64"
 
           aws s3 cp "$FILE" "s3://${ARTIFACT_BUCKET}/${KEY_ZIP}" \
             --metadata sha256-b64="$HASH_B64"
