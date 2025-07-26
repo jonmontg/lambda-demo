@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # if you switch to OIDC
 
 env:
   PY_VERSION: '3.11'
@@ -55,7 +54,8 @@ jobs:
         run: |
           mkdir -p build
           ZIP="build/${{ env.FUNCTION_NAME }}-${GITHUB_SHA::7}.zip"
-          zip -r "$ZIP" src vendor
+          cp -r lambda_function/* vendor/
+          zip -r "$ZIP" vendor
           echo "path=$ZIP" >> "$GITHUB_OUTPUT"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -109,12 +109,12 @@ jobs:
         env:
           ARTIFACT_BUCKET: ${{ secrets.ARTIFACT_BUCKET }}
         run: |
-          FILE="${{ steps.meta.outputs.file }}"
-          HASH="${{ steps.meta.outputs.hash_file }}"
-          VERSION="${{ steps.meta.outputs.version }}"
+          FILE=     "${{ steps.meta.outputs.file }}"
+          HASH=     "${{ steps.meta.outputs.hash_file }}"
+          VERSION=  "${{ steps.meta.outputs.version }}"
 
-          KEY_ZIP="${{ env.ARTIFACT_PREFIX }}/${{ env.FUNCTION_NAME }}-${{ matrix.environment }}-${VERSION}.zip"
-          KEY_HASH="${KEY_ZIP}.sha256.b64"
+          KEY_ZIP=  "${{ env.ARTIFACT_PREFIX }}/${{ env.FUNCTION_NAME }}-${{ matrix.environment }}-${VERSION}.zip"
+          KEY_HASH= "${KEY_ZIP}.sha256.b64"
 
           aws s3 cp "$FILE" "s3://${ARTIFACT_BUCKET}/${KEY_ZIP}" \
             --metadata sha256-b64="$HASH_B64"
@@ -155,7 +155,7 @@ jobs:
           TF_VAR_artifact_version:     ${{ steps.s3.outputs.version }}
           TF_VAR_git_commit_sha:       ${{ github.sha }}
           TF_VAR_git_short_sha:        ${{ steps.s3.outputs.short_sha }}
-          TF_VAR_version_number:           ${{ github.version_number }}
+          TF_VAR_version_number:       ${{ github.version_number }}
         run: terraform plan -input=false
 
       - name: Terraform Apply
