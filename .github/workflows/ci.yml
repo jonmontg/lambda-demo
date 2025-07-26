@@ -49,7 +49,7 @@ jobs:
           python-version: ${{ env.PY_VERSION }}
       - name: Install runtime deps into vendor/
         run: |
-          pip install -r requirements.txt --target vendor
+          pip install -r lambda_function/requirements.txt --target vendor
       - name: Package ZIP
         id: pkg
         run: |
