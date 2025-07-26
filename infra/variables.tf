@@ -24,7 +24,7 @@ variable "artifact_version" {
   type        = string
 }
 
-variables "git_commit_sha" {
+variable "git_commit_sha" {
   description = "Git commit SHA for traceability"
   type        = string
 }

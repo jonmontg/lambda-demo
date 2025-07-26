@@ -85,7 +85,7 @@ resource "aws_lambda_function" "demo_lambda" {
       BUILD_VERSION   = var.artifact_version
       GIT_COMMIT_SHA  = var.git_commit_sha
       GIT_SHORT_SHA   = var.git_short_sha
-      RUN_NUMBER      = tostring(var.run_number)
+      VERSION_NUMBER  = tostring(var.version_number)
     }
   }
 

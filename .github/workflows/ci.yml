@@ -87,7 +87,7 @@ jobs:
         run: |
           FILE=$(ls build/*.zip)
           SHORT_SHA="${GITHUB_SHA::7}"
-          VERSION="run-${GITHUB_RUN_NUMBER}-${SHORT_SHA}"
+          VERSION="run-${GITHUB_VERSION_NUMBER}-${SHORT_SHA}"
           # base64(SHA-256) required by Terraform
           HASH_B64=$(openssl dgst -sha256 -binary "$FILE" | base64)
           echo "$HASH_B64" > "${FILE}.sha256.b64"
@@ -154,7 +154,7 @@ jobs:
           TF_VAR_artifact_version:     ${{ steps.s3.outputs.version }}
           TF_VAR_git_commit_sha:       ${{ github.sha }}
           TF_VAR_git_short_sha:        ${{ steps.s3.outputs.short_sha }}
-          TF_VAR_run_number:           ${{ github.run_number }}
+          TF_VAR_version_number:           ${{ github.version_number }}
         run: terraform plan -input=false
 
       - name: Terraform Apply
@@ -170,5 +170,5 @@ jobs:
           TF_VAR_artifact_version:     ${{ steps.s3.outputs.version }}
           TF_VAR_git_commit_sha:       ${{ github.sha }}
           TF_VAR_git_short_sha:        ${{ steps.s3.outputs.short_sha }}
-          TF_VAR_run_number:           ${{ github.run_number }}
+          TF_VAR_version_number:       ${{ github.version_number }}
         run: terraform apply -auto-approve -input=false
