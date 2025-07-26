@@ -7,7 +7,9 @@ terraform {
   }
   required_version = ">= 1.0.0"
   backend "s3" {
-    workspace_key_prefix = "demo_lambda_function"
-    use_lockfile = true
+    bucket        = "terraform-state-bucket-937"
+    key           = "demo_lambda_function/${terraform.workspace}/terraform.tfstate"
+    use_lockfile  = true
+    encrypt       = true
   }
 }
