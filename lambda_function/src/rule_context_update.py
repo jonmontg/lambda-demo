@@ -2,7 +2,7 @@ from jinja2 import Environment, FileSystemLoader
 import threading
 import os
 import json
-from .lambda_bedrock import query_model
+from .query_bedrock import query_model
 
 def compound_method_worker(lock, bedrock, system_instructions, template, compound_method, prompt, updates, i):
   compound_method_updates = query_model(
