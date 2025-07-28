@@ -102,6 +102,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::651609171094:role/lambda-demo-github-oidc
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: us-east-1
 
       - name: Upload ZIP and hash to S3
