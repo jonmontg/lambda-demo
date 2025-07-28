@@ -37,12 +37,9 @@ resource "aws_iam_policy" "lambda_bedrock" {
       {
         Effect = "Allow",
         Action = [
-          "bedrock:InvokeModel",
-          "bedrock:InvokeModelWithResponseStream",
-          "bedrock:ListFoundationModels",
-          "bedrock:GetFoundationModel"
+          "bedrock:InvokeModel"
         ],
-        Resource = "*"
+        Resource = "arn:aws:bedrock:us-east-1::foundation-model/*"
       }
     ]
   })

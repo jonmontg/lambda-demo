@@ -14,6 +14,12 @@ env:
   FUNCTION_NAME: demo-lambda-function
   ARTIFACT_PREFIX: build
   AWS_REGION: us-east-1
+  TF_CLI_ARGS_plan:             "-input=false"
+  TF_CLI_ARGS_apply:            "-input=false -auto-approve"
+  TF_VAR_lambda_function_name:  demo-lambda-function
+  TF_VAR_artifact_bucket:       ${{ secrets.ARTIFACT_BUCKET }}
+  TF_VAR_git_commit_sha:        ${{ github.sha }}
+  TF_VAR_version_number:        ${{ github.run_number }}
 
 jobs:
   test:
@@ -23,17 +29,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PY_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            lambda_function/requirements.txt
+            requirements-test.txt
+
       - name: Install deps
         run: |
           python -m pip install -U pip
           pip install -r lambda_function/requirements.txt
           pip install -r requirements-test.txt
-      - name: Configure AWS credentials
+
+      - name: Set OIDC token
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::651609171094:role/lambda-demo-github-oidc
+          role-session-name: gha-ci-tests
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Run unit tests
         run: python -m pytest tests/golden/
 
@@ -47,17 +60,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PY_VERSION }}
-      - name: Install runtime deps into vendor/
-        run: |
-          pip install -r lambda_function/requirements.txt --target vendor
+          cache: 'pip'
+          cache-dependency-path: |
+            lambda_function/requirements.txt
       - name: Package ZIP
         id: pkg
         run: |
-          mkdir -p build
+          set -euo pipefail
+          rm -rf build package
+          mkdir -p build package
+          python -m pip install -U pip
+          pip install -r lambda_function/requirements.txt -t package
+          cp -r lambda_function package/lambda_function
           ZIP="build/${{ env.FUNCTION_NAME }}-${GITHUB_SHA::7}.zip"
-          cp -r lambda_function/* vendor/
-          zip -r "$ZIP" vendor
-          echo "path=$ZIP" >> "$GITHUB_OUTPUT"
+          (cd package && zip -r "../${ZIP}" .)
+          echo "path=${ZIP}" >> "$GITHUB_OUTPUT"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -103,7 +120,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::651609171094:role/lambda-demo-github-oidc
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Upload ZIP and hash to S3
         id: s3
@@ -147,31 +164,25 @@ jobs:
         run: |
           terraform workspace select ${{ matrix.environment }} 2>/dev/null || terraform workspace new ${{ matrix.environment }}
 
-      - name: Terraform Plan
-        working-directory: infra
+      - name: Terraform Plan (and refresh state)
         env:
-          TF_VAR_lambda_function_name: ${{ env.FUNCTION_NAME }}
-          TF_VAR_artifact_bucket:      ${{ secrets.ARTIFACT_BUCKET }}
-          TF_VAR_artifact_key:         ${{ steps.s3.outputs.key_zip }}
-          TF_VAR_artifact_hash_key:    ${{ steps.s3.outputs.key_hash }}
-          TF_VAR_artifact_version:     ${{ steps.s3.outputs.version }}
-          TF_VAR_git_commit_sha:       ${{ github.sha }}
-          TF_VAR_git_short_sha:        ${{ steps.s3.outputs.short_sha }}
-          TF_VAR_version_number:       ${{ github.run_number }}
-        run: terraform plan -input=false
+          TF_VAR_artifact_key:          ${{ steps.s3.outputs.key_zip }}
+          TF_VAR_artifact_hash_key:     ${{ steps.s3.outputs.key_hash }}
+          TF_VAR_artifact_version:      ${{ steps.s3.outputs.version }}
+          TF_VAR_git_short_sha:         ${{ steps.s3.outputs.short_sha }}
+        working-directory: infra
+        run: |
+          set -euo pipefail
+          terraform plan -refresh=true
 
       - name: Terraform Apply
+        env:
+          TF_VAR_artifact_key:          ${{ steps.s3.outputs.key_zip }}
+          TF_VAR_artifact_hash_key:     ${{ steps.s3.outputs.key_hash }}
+          TF_VAR_artifact_version:      ${{ steps.s3.outputs.version }}
+          TF_VAR_git_short_sha:         ${{ steps.s3.outputs.short_sha }}
         if: |
           (github.ref == 'refs/heads/main' && matrix.environment == 'prod') ||
           (github.ref == 'refs/heads/dev'  && matrix.environment == 'dev')
         working-directory: infra
-        env:
-          TF_VAR_lambda_function_name: ${{ env.FUNCTION_NAME }}
-          TF_VAR_artifact_bucket:      ${{ secrets.ARTIFACT_BUCKET }}
-          TF_VAR_artifact_key:         ${{ steps.s3.outputs.key_zip }}
-          TF_VAR_artifact_hash_key:    ${{ steps.s3.outputs.key_hash }}
-          TF_VAR_artifact_version:     ${{ steps.s3.outputs.version }}
-          TF_VAR_git_commit_sha:       ${{ github.sha }}
-          TF_VAR_git_short_sha:        ${{ steps.s3.outputs.short_sha }}
-          TF_VAR_version_number:       ${{ github.run_number }}
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply
