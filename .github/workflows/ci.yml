@@ -73,9 +73,9 @@ jobs:
           mkdir -p build package
           python -m pip install -U pip
           pip install -r lambda_function/requirements.txt -t package
-          cp -r lambda_function package/lambda_function
+          cp -r lambda_function/* package
           ZIP="build/${{ env.FUNCTION_NAME }}-${GITHUB_SHA::7}.zip"
-          (cd package/lambda_function && zip -r "../../${ZIP}" .)
+          (cd package && zip -r "../${ZIP}" .)
           echo "path=${ZIP}" >> "$GITHUB_OUTPUT"
       - name: Upload artifact
         uses: actions/upload-artifact@v4
