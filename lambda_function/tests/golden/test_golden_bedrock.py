@@ -1,4 +1,4 @@
-from lambda_function.lambda_function import lambda_handler
+from lambda_function import lambda_handler
 import yaml, json, pathlib
 
 

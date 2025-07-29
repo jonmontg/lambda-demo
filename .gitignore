@@ -1,3 +1,4 @@
 demo-cli
-".pytest_cache"/**
-*/__pycache__/**
+.pytest_cache/**
+**/__pycache__/**
+lambda_function/src/__pycache__/**
