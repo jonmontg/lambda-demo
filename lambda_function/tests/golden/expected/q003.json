@@ -1,0 +1,17 @@
+{
+  "statusCode": 200,
+  "body": {
+    "compound_methods": {
+      "0": {
+        "chromatogram_methods": {
+          "0": {
+            "rule_settings": {"double-blank-dynamic-thresh%": "50"}
+          },
+          "1": {
+            "rule_settings": {"double-blank-dynamic-thresh%": "50"}
+          }
+        }
+      }
+    }
+  }
+}

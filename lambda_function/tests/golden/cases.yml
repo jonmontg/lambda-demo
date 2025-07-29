@@ -16,3 +16,12 @@ cases:
     expect:
       mode: exact
       file: "tests/golden/expected/q002.json"
+
+  - id: q003
+    event:
+      user_prompt: "set the double blank dynamic threshold parameter to 50 for all analyte chromatograms"
+      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_35.json"
+      prompt_context: "rules:DynamicContaminationOfDoubleBlank"
+    expect:
+      mode: exact
+      file: "tests/golden/expected/q003.json"
