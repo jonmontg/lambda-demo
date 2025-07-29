@@ -4,14 +4,18 @@ import os
 import json
 from .query_bedrock import query_model
 
-def compound_method_worker(lock, bedrock, system_instructions, template, compound_method, prompt, updates, i):
+def compound_method_worker(lock, bedrock, system_instructions, template, rule_info, compound_method, prompt, updates, i):
   compound_method_updates = query_model(
     bedrock,
     system_instructions,
     template.render(
       assay_json=compound_method,
       user_prompt=prompt,
-      description="compound method and associated chromatogram methods"
+      description="compound method and associated chromatogram methods",
+      rule_name=rule_info["rule_name"],
+      assay_scope_parameters=rule_info["assay_scope_parameters"],
+      compound_scope_parameters=rule_info["compound_scope_parameters"],
+      chromatogram_scope_parameters=rule_info["chromatogram_scope_parameters"]
     )
   )
   if compound_method_updates.get("should_update", False):
@@ -43,6 +47,13 @@ def rule_context_update(s3, bedrock, assay_json, prompt, rule_name):
     response = query_model(bedrock, clean_prompt_si, prompt)
     prompt = response["cleaned_prompt"]
 
+  rule_info = {
+    "rule_name": rule_name,
+    "assay_scope_parameters": ", ".join([p["name"] for p in rule["rule_parameters"] if p["scope"] == "assay"]),
+    "compound_scope_parameters": ", ".join([p["name"] for p in rule["rule_parameters"] if p["scope"] == "compound"]),
+    "chromatogram_scope_parameters": ", ".join([p["name"] for p in rule["rule_parameters"] if p["scope"] == "chromatogram"])
+  }
+
   # Execute the prompt on the chunked assay
   system_instructions = env.get_template("update_assay_si.j2").render()
   template = env.get_template("update_assay.j2")
@@ -52,7 +63,7 @@ def rule_context_update(s3, bedrock, assay_json, prompt, rule_name):
   for i in range(len(assay_json["compound_methods"])):
     t = threading.Thread(
       target=compound_method_worker,
-      args=(lock, bedrock, system_instructions, template, assay_json["compound_methods"][i], prompt, updates, i)
+      args=(lock, bedrock, system_instructions, template, rule_info, assay_json["compound_methods"][i], prompt, updates, i)
     )
     t.start()
     threads.append(t)
