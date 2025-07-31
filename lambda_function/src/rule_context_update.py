@@ -26,26 +26,34 @@ def rule_context_update(s3, bedrock, assay_json, prompt, rule_name):
   lock = threading.Lock()
   env = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), "templates", "rule_setting_update")))
 
-  # Validate the prompt
-  validation_result = query_model(bedrock, env.get_template("validate_prompt_si.j2").render(), prompt)
-  if not validation_result.get("success", False):
-    return {
-      "statusCode": 400,
-      "body": validation_result.get("response")
-    }
-
   # Clean the prompt
   ruleset_schema = s3.get_object(Bucket="assays-demo", Key="ruleset_schema.json")
   ruleset_schema = json.loads(ruleset_schema['Body'].read().decode('utf-8'))
   rule = next((rule for rule in ruleset_schema["ruleset_schema"]["rules"] if rule["name"] == rule_name), None)
+  parameter_names = []
   if rule:
     word_map = {
       rule["display_name"]: rule["name"],
       **{param["display_name"]: param["name"] for param in rule["rule_parameters"]}
     }
+    parameter_names = [param["name"] for param in rule["rule_parameters"]]
     clean_prompt_si = env.get_template("clean_prompt_si.j2").render(word_map = json.dumps(word_map))
     response = query_model(bedrock, clean_prompt_si, prompt)
     prompt = response["cleaned_prompt"]
+
+  # Validate the prompt
+  validation_result = query_model(
+    bedrock,
+    env.get_template("validate_prompt_si.j2").render(
+      rule_name = rule_name,
+      rule_parameters = ", ".join(parameter_names) if any(parameter_names) else "none"
+    ),
+    prompt)
+  if not validation_result.get("success", False):
+    return {
+      "statusCode": 400,
+      "body": validation_result.get("response", "Internal error.")
+    }
 
   rule_info = {
     "rule_name": rule_name,

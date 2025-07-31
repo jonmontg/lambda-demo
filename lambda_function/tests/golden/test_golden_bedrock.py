@@ -1,5 +1,19 @@
 from lambda_function import lambda_handler
 import yaml, json, pathlib
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+def run_test(tid, expected, actual):
+  logger.info(f"""
+Test: {tid}.
+==========
+Expected={expected}
+Actual={actual}
+  """)
+  assert expected == actual
+
 
 def test_golden_cases():
   base = pathlib.Path(__file__).parent.parent / "golden"
@@ -11,7 +25,11 @@ def test_golden_cases():
 
     if case["expect"]["mode"] == "exact":
       with open(case["expect"]["file"]) as f:
-          exp = json.load(f)
-      assert response == exp
+        exp = json.load(f)
+      run_test(case["id"], exp, response)
+    elif case["expect"]["mode"] == "status":
+      with open(case["expect"]["file"]) as f:
+        exp = json.load(f)
+      run_test(case["id"],  exp["statusCode"], response.get("statusCode"))
     else:
        assert False

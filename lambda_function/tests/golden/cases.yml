@@ -25,3 +25,12 @@ cases:
     expect:
       mode: exact
       file: "tests/golden/expected/q003.json"
+
+  - id: q004
+    event:
+      user_prompt: "Enable Ion Ratio Deviation for all compounds"
+      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_35.json"
+      prompt_context: "rules:DynamicContaminationOfDoubleBlank"
+    expect:
+      mode: status
+      file: "tests/golden/expected/q004.json"
