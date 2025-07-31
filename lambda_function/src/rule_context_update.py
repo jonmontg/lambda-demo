@@ -80,5 +80,5 @@ def rule_context_update(s3, bedrock, assay_json, prompt, rule_name):
 
   return {
     "statusCode": 200,
-    "body": json.dumps(updates)
+    "body": updates
   }
