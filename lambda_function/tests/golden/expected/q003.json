@@ -5,10 +5,10 @@
       "0": {
         "chromatogram_methods": {
           "0": {
-            "rule_settings": {"double-blank-dynamic-thresh%": "50"}
+            "rule_settings": {"double-blank-dynamic-thresh%": 50}
           },
           "1": {
-            "rule_settings": {"double-blank-dynamic-thresh%": "50"}
+            "rule_settings": {"double-blank-dynamic-thresh%": 50}
           }
         }
       }
