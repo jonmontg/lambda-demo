@@ -2,7 +2,7 @@ cases:
   - id: q001
     event:
       user_prompt: "Enable the rule for all analytes"
-      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_35.json"
+      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_17.json"
       prompt_context: "rules:DynamicContaminationOfDoubleBlank"
     expect:
       mode: exact
@@ -11,7 +11,7 @@ cases:
   - id: q002
     event:
       user_prompt: "Enable the rule for all internal standards"
-      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_35.json"
+      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_17.json"
       prompt_context: "rules:DynamicContaminationOfDoubleBlank"
     expect:
       mode: exact
@@ -20,7 +20,7 @@ cases:
   - id: q003
     event:
       user_prompt: "set the double blank dynamic threshold parameter to 50 for all analyte chromatograms"
-      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_35.json"
+      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_17.json"
       prompt_context: "rules:DynamicContaminationOfDoubleBlank"
     expect:
       mode: exact
@@ -29,8 +29,17 @@ cases:
   - id: q004
     event:
       user_prompt: "Enable Ion Ratio Deviation for all compounds"
-      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_35.json"
+      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_17.json"
       prompt_context: "rules:DynamicContaminationOfDoubleBlank"
     expect:
       mode: status
       file: "tests/golden/expected/q004.json"
+
+  - id: q005
+    event:
+      user_prompt: "Set the Quantifier to the first chromatogram configured for each analyte"
+      assay_name: "jmontgomery_demo_assay_2025_07_10_T00_17_17.json"
+      prompt_context: "rules:IonRatioDeviation"
+    expect:
+      mode: exact
+      file: "tests/golden/expected/q005.json"

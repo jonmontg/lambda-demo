@@ -1,6 +1,6 @@
 import json
 import boto3
-from src.rule_context.rule_context_update import rule_context_update
+from src.rules.rule_context_update import rule_context_update
 
 def lambda_handler(event, _):
   bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")

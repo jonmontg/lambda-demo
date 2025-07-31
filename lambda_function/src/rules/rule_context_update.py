@@ -30,13 +30,13 @@ def rule_context_update(s3, bedrock, assay_json, prompt, rule_name):
   ruleset_schema = s3.get_object(Bucket="assays-demo", Key="ruleset_schema.json")
   ruleset_schema = json.loads(ruleset_schema['Body'].read().decode('utf-8'))
   rule = next((rule for rule in ruleset_schema["ruleset_schema"]["rules"] if rule["name"] == rule_name), None)
-  parameter_names = []
+  parameters = []
   if rule:
+    parameters = [param for param in rule["rule_parameters"]]
     word_map = {
       rule["display_name"]: rule["name"],
-      **{param["display_name"]: param["name"] for param in rule["rule_parameters"]}
+      **{param["display_name"]: param["name"] for param in parameters}
     }
-    parameter_names = [param["name"] for param in rule["rule_parameters"]]
     clean_prompt_si = env.get_template("clean_prompt_si.j2").render(word_map = json.dumps(word_map))
     response = query_model(bedrock, clean_prompt_si, prompt)
     prompt = response["cleaned_prompt"]
@@ -46,7 +46,7 @@ def rule_context_update(s3, bedrock, assay_json, prompt, rule_name):
     bedrock,
     env.get_template("validate_prompt_si.j2").render(
       rule_name = rule_name,
-      rule_parameters = ", ".join(parameter_names) if any(parameter_names) else "none"
+      rule_parameters = "\n".join([f"{param['name']}: {param['type']}" for param in parameters]) if any(parameters) else "none"
     ),
     prompt)
   if not validation_result.get("success", False):
