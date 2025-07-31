@@ -1,6 +1,6 @@
 import json
 import boto3
-from src.rule_context_update import rule_context_update
+from src.rule_context.rule_context_update import rule_context_update
 
 def lambda_handler(event, _):
   bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
@@ -20,6 +20,6 @@ def lambda_handler(event, _):
     return rule_context_update(s3, bedrock, assay_json, prompt, prompt_context.split(":")[1])
   else:
     return {
-      "statusCode": 400,
+      "statusCode": 422,
       "body": "Updates on this page are unsupported at this time. Coming soon..."
     }

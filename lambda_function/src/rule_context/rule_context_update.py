@@ -2,7 +2,7 @@ from jinja2 import Environment, FileSystemLoader
 import threading
 import os
 import json
-from .query_bedrock import query_model
+from ..query_bedrock import query_model
 
 def compound_method_worker(lock, bedrock, system_instructions, template, rule_info, compound_method, prompt, updates, i):
   compound_method_updates = query_model(
@@ -24,7 +24,7 @@ def compound_method_worker(lock, bedrock, system_instructions, template, rule_in
 
 def rule_context_update(s3, bedrock, assay_json, prompt, rule_name):
   lock = threading.Lock()
-  env = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), "templates", "rule_setting_update")))
+  env = Environment(loader=FileSystemLoader(os.path.join(os.path.dirname(__file__), "templates")))
 
   # Clean the prompt
   ruleset_schema = s3.get_object(Bucket="assays-demo", Key="ruleset_schema.json")
@@ -51,7 +51,7 @@ def rule_context_update(s3, bedrock, assay_json, prompt, rule_name):
     prompt)
   if not validation_result.get("success", False):
     return {
-      "statusCode": 400,
+      "statusCode": 422,
       "body": validation_result.get("response", "Internal error.")
     }
 
