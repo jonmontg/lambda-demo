@@ -3,10 +3,29 @@ import json
 import re
 import time
 
+# Configure logging for the module
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 def query_model(bedrock, system, message, max_attempts=7, base_delay=0.5, backoff_factor=2):
+  """
+  Query Amazon Bedrock's Nova Pro model with retry logic and error handling.
+
+  Args:
+      bedrock: Bedrock client instance for making API calls
+      system (str): System prompt/context to provide to the model
+      message (str): User message/query to send to the model
+      max_attempts (int): Maximum number of retry attempts for throttling (default: 7)
+      base_delay (float): Base delay in seconds for exponential backoff (default: 0.5)
+      backoff_factor (float): Multiplier for exponential backoff (default: 2)
+
+  Returns:
+      dict: Parsed JSON response from the model
+
+  Raises:
+      Exception: If max retry attempts are exceeded or other errors occur
+  """
+
   payload = {
     "schemaVersion": "messages-v1",
     "system": [{"text": system}],
