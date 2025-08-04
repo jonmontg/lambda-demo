@@ -5,6 +5,9 @@ import json
 from ..query_bedrock import query_model
 
 def compound_method_worker(lock, bedrock, system_instructions, template, compound_method, prompt, updates, i):
+  # Delete all PCR attributes
+  for chromatogram_method in compound_method["chromatogram_methods"]:
+    del chromatogram_method["peak_integration"]["pcr_method"]
   compound_method_updates = query_model(
     bedrock,
     system_instructions,

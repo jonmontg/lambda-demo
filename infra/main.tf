@@ -75,7 +75,7 @@ resource "aws_lambda_function" "demo_lambda" {
   role          = aws_iam_role.lambda_exec.arn
   handler       = "lambda_function.lambda_handler"
   runtime       = "python3.11"
-  timeout       = 60
+  timeout       = 120
   memory_size   = 512
 
   s3_bucket        = var.artifact_bucket

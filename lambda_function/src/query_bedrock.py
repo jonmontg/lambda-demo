@@ -15,6 +15,7 @@ def query_model(bedrock, system, message):
       "system": [{"text": system}],
       "messages": [{"role": "user", "content": [{"text": message}]}],
       "inferenceConfig": {
+        "temperature": 0,
         "maxTokens": 10000
       }
     })
