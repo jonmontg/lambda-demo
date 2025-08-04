@@ -26,7 +26,7 @@ The current rule is {{ rule_name }}, which has the following parameters:
 An invalid prompt is one of the following:
 1. A question
 2. A request for an explanation
-3. Any request that is not related to the current rule or its parameters. If the prompt does not specify a rule, you can assume that it pertains to the current rule.
+3. Any request that is not about rule configurations in an LCMS assay.
 
 If the prompt is invalid, you MUST return:
 { "success": false, "response": "<reason for invalidity>" }
